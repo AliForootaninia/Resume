@@ -1,5 +1,8 @@
+-- This script calculates and analyzes various metrics related to case handling, including OLA and SLA compliance.
+-- It retrieves information about cases, users, groups, and time elapsed for reporting purposes.
+
 ;WITH
-	ELAPS
+	ELAPS --Calculate the Time spent by the current user group to pick the ticket and send it to the next team
 		AS
 			(SELECT
 				Custom_Entity09.Virtual_ResponsibleGroup,
@@ -12,7 +15,7 @@
 			HAVING SUM(CASE WHEN Custom_Entity09.Virtual_OlaLogType = 0 THEN Custom_Entity09.Virtual_ElapsedMinutes ELSE 0 END) 
 				- SUM(CASE WHEN Custom_Entity09.Virtual_OlaLogType = 1 THEN Custom_Entity09.Virtual_ElapsedMinutes ELSE 0 END) > 0
 			),
-	ResponsibleELAPSE
+	ResponsibleELAPSE --Find the user who was responsible for the ticket
 		AS
 			(SELECT
 				SUM(Custom_Entity08.Virtual_ElapsedMinutes) AS SUMELAPSEMINUTE,
@@ -27,9 +30,9 @@ SELECT
 		Case_Table.id 'Case ID',
 		Case_Type.description 'Case Type',
 		Case_Table.description 'Title',
-		dbo.PersianDate(Custom_Entity09.Virtual_StartDateTime) AS N'Log Start Date and Time',
-		dbo.PersianDate(Custom_Entity09.Virtual_EndDateTime) AS N'Log End Date and Time',
-		dbo.PersianDate(Case_Table.opened_date) AS N'Case Open Date',
+		Custom_Entity09.Virtual_StartDateTime AS N'Log Start Date and Time',
+		Custom_Entity09.Virtual_EndDateTime AS N'Log End Date and Time',
+		Case_Table.opened_date AS N'Case Open Date',
 		Case_Category.description N'Case Category',
 		Customer.description 'Customer',
 		Organization.description 'Customer Organization',
@@ -41,7 +44,7 @@ SELECT
 			WHEN Priority.escalation_solve_units = 1  THEN Priority.escalation_solved * 60 
 			WHEN Priority.escalation_solve_units = 2  THEN (Priority.escalation_solved * 24) * 60
 			ELSE Priority.escalation_solved 
-		END AS 'OLA Spent(Min)',
+		END AS 'OLA Spent(Min)', --Calculate the OLA time in minute, depends on the escalation_solve_units field value
 		Priority.escalation_solved AS 'Default OLA',
 		P2.DESCRIPTION AS 'Default SLA',
 		CASE
@@ -71,7 +74,7 @@ SELECT
 			WHEN case_table.case_status = 2 THEN 'Solved'
 			WHEN case_table.case_status = 3 THEN 'Closed'
 		End AS 'Case status',
-		dbo.GetCaseReopenCount(case_pk) As 'Reopen Count'
+		dbo.GetCaseReopenCount(case_pk) As 'Reopen Count' --This function counts the tickets which are reopened by the customer or service desk team
 FROM Custom_Entity09 
 		FULL JOIN Case_Table ON	Case_Table.case_pk = Custom_Entity09.Virtual_Case
 		LEFT JOIN User_Table ON	Custom_Entity09.Virtual_ResponsibleGroup = User_Table.user_pk
@@ -89,6 +92,4 @@ FROM Custom_Entity09
 		LEFT JOIN Service_Hours ON Custom_Entity09.Virtual_ServiceHours = Service_Hours.service_hours_pk
 		LEFT JOIN ELAPS ON Custom_Entity09.Virtual_Case = ELAPS.Virtual_Case AND ELAPS.Virtual_ResponsibleGroup = Custom_Entity09.Virtual_ResponsibleGroup
 		LEFT JOIN ResponsibleELAPSE ON ResponsibleELAPSE.Virtual_Case = Custom_Entity09.Virtual_Case AND ResponsibleELAPSE.Virtual_ResponsibleGroup = Custom_Entity09.Virtual_ResponsibleGroup
-WHERE 
-		Case_Table.id > 61138
 ORDER BY Case_Table.opened_date, Custom_Entity09.Virtual_StartDateTime
