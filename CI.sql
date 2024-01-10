@@ -40,21 +40,13 @@ SELECT
     END AS 'وضعیت مورد', -- Case Status
     COUNT(Case_CI.ci_pk) OVER (PARTITION BY Case_CI.case_pk) -- This window function retrieves the count of each CI attached to a case
 FROM Configuration_Item CI 	
-    LEFT JOIN Case_CI ON
-        Case_CI.ci_pk = CI.ci_pk
-    LEFT JOIN Case_Table ON
-        Case_CI.case_pk = Case_Table.case_pk
-    LEFT JOIN Configuration_Item AS C1 ON
-        Case_Table.ci_pk = C1.ci_pk
-    LEFT JOIN Configuration_Item AS C2 ON
-        Case_Table.ci2_pk = C2.ci_pk
-    LEFT JOIN Case_Type ON
-        Case_Table.case_type_pk = Case_Type.case_type_pk
-    LEFT JOIN Configuration_Item_Type CIT ON
-        CI.ci_type_pk = CIT.ci_type_pk
-    LEFT JOIN Configuration_Item_Type CITP ON
-        CITP.ci_type_pk = CIT.parent_ci_type_pk
-    LEFT JOIN Item ON
-        CI.item_pk = Item.item_pk
+    LEFT JOIN Case_CI ON Case_CI.ci_pk = CI.ci_pk
+    LEFT JOIN Case_Table ON Case_CI.case_pk = Case_Table.case_pk
+    LEFT JOIN Configuration_Item AS C1 ON Case_Table.ci_pk = C1.ci_pk
+    LEFT JOIN Configuration_Item AS C2 ON Case_Table.ci2_pk = C2.ci_pk
+    LEFT JOIN Case_Type ON Case_Table.case_type_pk = Case_Type.case_type_pk
+    LEFT JOIN Configuration_Item_Type CIT ON CI.ci_type_pk = CIT.ci_type_pk
+    LEFT JOIN Configuration_Item_Type CITP ON CITP.ci_type_pk = CIT.parent_ci_type_pk
+    LEFT JOIN Item ON CI.item_pk = Item.item_pk
 WHERE 
     CI.ci_type_pk NOT IN (83497927,83501456,83517507,83513546)
