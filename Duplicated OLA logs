@@ -2,12 +2,12 @@
 
 -- Selecting relevant columns for reporting
 SELECT 
-    Case_Table.id AS N'شناسه مورد',
-    CONCAT(User_Group.id, Case_Category.id) AS N'شناسه طبقه بندی و گروه کاربری',
-    Case_Category.description AS N'طبقه بندی سرویس',
-    User_Group.description AS N'گروه کاربری مورد',
-    DBO.PersianDate(Case_Table.opened_date) AS N'تاریخ شمسی ثبت مورد',
-    COUNT(CONCAT(User_Group.id, Case_Category.id, C09.Virtual_StartDateTime)) AS N'تعداد تکرار لاگ های OLA'
+    Case_Table.id AS 'Case ID',
+    CONCAT(User_Group.id, Case_Category.id) AS 'Classification and User Group ID',
+    Case_Category.description AS 'Service Classification',
+    User_Group.description AS 'User Group',
+    DBO.PersianDate(Case_Table.opened_date) AS 'Persian Opened Date',
+    COUNT(CONCAT(User_Group.id, Case_Category.id, C09.Virtual_StartDateTime)) AS 'Number of OLA Log Duplicates'
 FROM Custom_Entity09 C09
     -- Joining tables to get the necessary information
     LEFT JOIN User_Group ON User_Group.user_group_pk = C09.Virtual_ResponsibleGroup
@@ -30,5 +30,3 @@ HAVING COUNT(CONCAT(Case_Category.id, User_Group.id)) > 1
 -- Sorting the results by opened_date in descending order
 ORDER BY 
     Case_Table.opened_date DESC
-
-
