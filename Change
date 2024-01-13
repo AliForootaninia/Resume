@@ -12,11 +12,11 @@
         (SELECT description FROM User_Table WHERE Task.responsible_user_pk = User_Table.user_pk) AS TASKUSER,
         -- Mapping task status to Persian descriptions
         CASE
-            WHEN Task.status = 0 THEN N'شروع نشده'
-            WHEN Task.status = 1 THEN N'در جریان'
-            WHEN Task.status = 2 THEN N'خاتمه یافته'
-            WHEN Task.status = 3 THEN N'در انتظار شخص دیگر'
-            WHEN Task.status = 4 THEN N'رد شده'
+            WHEN Task.status = 0 THEN N'Not Started'
+            WHEN Task.status = 1 THEN N'In Progress'
+            WHEN Task.status = 2 THEN N'Completed'
+            WHEN Task.status = 3 THEN N'Waiting for Another Person'
+            WHEN Task.status = 4 THEN N'Rejected'
         END AS TASKSTATUS,
         Task.due_date,
         Task.start_date,
@@ -29,41 +29,41 @@
 
 -- Main SELECT statement to retrieve information for reporting
 SELECT 
-    DISTINCT Change_Order.id AS 'شناسه تغییر',
-    Change_Order.description AS 'عنوان تغییر',
-    Activity_Plan.description AS N'نوع تغییر',
+    DISTINCT Change_Order.id AS 'Change ID',
+    Change_Order.description AS 'Change Title',
+    Activity_Plan.description AS 'Change Type',
     -- Categorizing changes based on activity plan description
     CASE 
-        WHEN activity_plan.description IN (N'تغییر نرمال', N'محصول جدید', N'تغییر Major', N'درخواست تغییر/ قابلیت جدید در سرویس') THEN N'تغییر کسب و کاری'
-        WHEN activity_plan.description = N'تغییر اضطراری' THEN N'تغییر اضطراری'
-        WHEN activity_plan.description IN (N'تغییر داخلی', N'تغییر فنی') THEN N'تغییر فنی'
-        WHEN activity_plan.description = N'تغییر غیر مجاز' THEN N'خارج از روال'
-    END AS N'دسته بندی تغییر',
-    DBO.PersianDate(Change_Order.create_time) AS N'زمان ثبت تغییر',
+        WHEN activity_plan.description IN ('Normal Change', 'New Product', 'Major Change', 'Change Request/New Feature in Service') THEN 'Business Change'
+        WHEN activity_plan.description = 'Emergency Change' THEN 'Emergency Change'
+        WHEN activity_plan.description IN ('Internal Change', 'Technical Change') THEN 'Technical Change'
+        WHEN activity_plan.description = 'Unauthorized Change' THEN 'Out of Process'
+    END AS 'Change Category',
+    DBO.PersianDate(Change_Order.create_time) AS 'Change Registration Time',
     -- Calling a custom function to get the current activity
-    (dbo.GetCurrentActivity(Change_Order.change_order_pk)) AS N'فعالیت جاری',
+    (dbo.GetCurrentActivity(Change_Order.change_order_pk)) AS 'Current Activity',
     -- Handling cases where current activity is NULL or an empty string
     CASE	
         WHEN dbo.GetCurrentActivity(Change_Order.change_order_pk) = '' THEN Custom_Entity18.description
         WHEN dbo.GetCurrentActivity(Change_Order.change_order_pk) IS NULL THEN Custom_Entity18.description
         ELSE dbo.GetCurrentActivity(Change_Order.change_order_pk)
-    END AS N'مرحله جاری',
-    customer.description AS N'درخواست کننده',
-    organization.name AS N'سازمان کاربر ثبت کننده',
+    END AS 'Current Stage',
+    customer.description AS 'Requester',
+    organization.name AS 'Registering Organization',
     -- Categorizing IT status based on the current activity
     CASE
-        WHEN (dbo.GetCurrentActivity(Change_Order.change_order_pk)) IN (N'تحلیل فنی', N'پیاده سازی و راه اندازی', N'بررسی درخواست در کمیته CCB', N'بروز رسانی CMDB', N'پیاده سازی', N'تصمیم گیری کمیته CAB', N'نهایی سازی هزینه و زمان ارائه') THEN N'فناوری اطلاعات'
-        ELSE N'کسب و کار'
-    END AS N'وضعیت فناوری اطلاعات',
+        WHEN (dbo.GetCurrentActivity(Change_Order.change_order_pk)) IN ('Technical Analysis', 'Implementation and Deployment', 'Review Request in CCB Committee', 'Update CMDB', 'Implementation', 'Decision Making in CAB Committee', 'Finalizing Cost and Time Presentation') THEN 'Information Technology'
+        ELSE 'Business'
+    END AS 'IT Status',
     -- Mapping change order status to Persian descriptions
     CASE
-        WHEN Change_Order.status = 0 THEN N'هیچ'
-        WHEN Change_Order.status = 1 THEN N'جدید'
-        WHEN Change_Order.status = 2 THEN N'برنامه ریزی شده'
-        WHEN Change_Order.status = 3 THEN N'تخصیص یافته'
-        WHEN Change_Order.status = 4 THEN N'در جریان'
-        WHEN Change_Order.status = 5 THEN N'خاتمه یافته'
-    END AS N'وضعیت تغییر',
+        WHEN Change_Order.status = 0 THEN 'None'
+        WHEN Change_Order.status = 1 THEN 'New'
+        WHEN Change_Order.status = 2 THEN 'Scheduled'
+        WHEN Change_Order.status = 3 THEN 'Assigned'
+        WHEN Change_Order.status = 4 THEN 'In Progress'
+        WHEN Change_Order.status = 5 THEN 'Completed'
+    END AS 'Change Status',
     -- Concatenating related changes in one record
     ISNULL(STUFF((SELECT '-' + CAST(RelatedChanges.RelatedID AS nvarchar(MAX))
                   FROM CHANGE_ORDER CO
@@ -76,29 +76,29 @@ SELECT
                     JOIN Change_Order C2 ON C2.change_order_pk = Entity_Relation.trail_pk
                     WHERE relation_name = 'DynRelChangeOrderList' AND C1.change_order_pk = Change_Order.change_order_pk) AS
                   RelatedChanges ON CO.change_order_pk = RelatedChanges.change_order_pk
-                  FOR XML PATH('')), 1, 1, ''), '') AS N'تغییرات مرتبط',
+                  FOR XML PATH('')), 1, 1, ''), '') AS 'Related Changes',
     -- Columns related to activities
-    Activity.id AS N'شناسه فعالیت',
-    Activity.description AS N'نوع فعالیت',
-    DBO.PersianDate(Activity.actual_start_time) AS N'تاریخ شروع فعالیت',
-    DBO.PersianDate(Activity.actual_end_time) AS N'تاریخ پایان فعالیت',
-    DBO.PersianDate(Activity.Virtual_RelatedReleaseDate) AS N'تاریخ تخمینی ریلیز',
-    DBO.PersianDate(Activity.Virtual_ChangeDeliveryDate) AS N'زمان واقعی تحویل تغییر',
+    Activity.id AS 'Activity ID',
+    Activity.description AS 'Activity Type',
+    DBO.PersianDate(Activity.actual_start_time) AS 'Activity Start Date',
+    DBO.PersianDate(Activity.actual_end_time) AS 'Activity End Date',
+    DBO.PersianDate(Activity.Virtual_RelatedReleaseDate) AS 'Estimated Release Date',
+    DBO.PersianDate(Activity.Virtual_ChangeDeliveryDate) AS 'Actual Change Delivery Time',
     -- Retrieving responsible users for activity
-    (SELECT User_Table.description FROM User_Table WHERE User_Table.user_pk = Activity.Virtual_ResponsibleUser2) AS N'مدیر نشر و استقرار',
-    (SELECT User_Table.description FROM User_Table WHERE User_Table.user_pk = Activity.Virtual_ResponsibleUser) AS N'مسئول ارزیابی تغییر',
-    Activity.Virtual_PersonHour AS N'نفر ساعت',
+    (SELECT User_Table.description FROM User_Table WHERE User_Table.user_pk = Activity.Virtual_ResponsibleUser2) AS 'Deployment Manager',
+    (SELECT User_Table.description FROM User_Table WHERE User_Table.user_pk = Activity.Virtual_ResponsibleUser) AS 'Change Assessment Responsible',
+    Activity.Virtual_PersonHour AS 'Person Hours',
     -- Columns related to tasks from the TaskTemp CTE
-    TaskTemp.id AS N'شناسه وظیفه',
-    TaskTemp.description AS N'عنوان وظیفه',
-    TaskTemp.TASKGROUP AS N'گروه کاربر مسئول وظیفه',
-    TaskTemp.TASKUSER AS N'کاربر مسئول وظیفه',
-    TaskTemp.TASKSTATUS AS N'وضعیت وظیفه',
-    DBO.PersianDate(TaskTemp.due_date) AS N'تاریخ سررسید',
-    DBO.PersianDate(TaskTemp.start_date) AS N'تاریخ شروع',
-    DBO.PersianDate(TaskTemp.end_date) AS N'تاریخ پایان',
-    TaskTemp.Virtual_PersonHour AS N'نفر ساعت وظیفه',
-    TaskTemp.DelayTime AS N'زمان تاخیر (ساعت)'
+    TaskTemp.id AS 'Task ID',
+    TaskTemp.description AS 'Task Title',
+    TaskTemp.TASKGROUP AS 'Task User Group',
+    TaskTemp.TASKUSER AS 'Task User',
+    TaskTemp.TASKSTATUS AS 'Task Status',
+    DBO.PersianDate(TaskTemp.due_date) AS 'Due Date',
+    DBO.PersianDate(TaskTemp.start_date) AS 'Start Date',
+    DBO.PersianDate(TaskTemp.end_date) AS 'End Date',
+    TaskTemp.Virtual_PersonHour AS 'Task Person Hours',
+    TaskTemp.DelayTime AS 'Delay Time (Hours)'
 FROM Change_Order 
     -- Joining tables related to Change_Order
     LEFT JOIN Activity ON Activity.change_order_pk = Change_Order.change_order_pk
@@ -110,4 +110,4 @@ FROM Change_Order
     FULL JOIN TaskTemp ON Activity.activity_pk = TaskTemp.root_pk
 -- Filtering the results based on conditions
 WHERE Change_Order.id IS NOT NULL 
-    AND Activity.description IN (N'تحلیل فنی', N'پیاده سازی و راه اندازی', N'بررسی درخواست در کمیته CCB', N'تایید درخواست دهنده', N'تصمیم گیری کمیته CAB')
+    AND Activity.description IN ('Technical Analysis', 'Implementation and Deployment', 'Review Request in CCB Committee', 'Approval by Requester', 'Decision Making in CAB Committee')
